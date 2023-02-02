@@ -1,0 +1,121 @@
+---
+title: "cort_rate"
+author: "A Torrico"
+date: '2022-11-01'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#install.packages("Rtools")
+#install.packages("tidyverse")
+#install.packages("here")
+#install.packages("janitor")
+#install.packages("dplyr")
+
+library(tidyverse)
+library(here)
+library(janitor)
+library(dplyr)
+library(ggplot2)
+
+```
+
+#calling the data and clean names to make everything lowercase
+```{r}
+cort_rt <- read.csv(here("data", "CORT levels for RT 2012-2015.csv")) %>%
+  clean_names()
+ucp_rt <- read.csv(here("data", "UCP data for RT 2012-2015.csv")) %>%
+  clean_names()
+alarm_ige <- read.csv(here("data", "Alarm and IGEs for RT 2012-2015.csv")) %>%
+  clean_names()
+chomp_rt <- read.csv(here("data", "CHomp for RT 2012-2015.csv")) %>%
+  clean_names()
+psa_rt <- read.csv(here("data", "PSAs for RT 2012-2015 - per Day.csv")) %>%
+  clean_names()
+repro <- read.csv(here("data", "Repro for RT 2012-2015.csv")) %>%
+  clean_names()
+```
+
+#selecting columns from each dataset
+```{r}
+selected_alarm <- select(alarm_ige, group, r_eagle, r_ig_es, wo_p)
+selected_chomp <- select(chomp_rt, group, c_homp_final, wo_p)
+selected_cort <- select(cort_rt, species, group, name, class, cort_dw, wo_p)
+#renaming wp in psa to w_op to match all other datasets
+colnames(psa_rt)[4]<-"wo_p"
+selected_psa <- select(psa_rt, psa_my_perc, psa_bl_perc, psa_ch_perc, wo_p, group)
+selected_ucp <- select(ucp_rt, group, name, mean_uc_psg, wo_p)
+```
+
+
+#cortisol average by group
+```{r}
+cort_dw_num <- as.numeric(selected_cort$cort_dw)
+selected_cort$cort_numeric <- c(cort_dw_num)
+
+
+rename_selected_cort <- selected_cort %>%
+  group_by(group) %>%
+  summarize(cort_sum=sum(cort_dw_num))
+  
+```
+
+
+#combining selected columns datasets
+```{r}
+cort_alarm <- full_join(x=selected_cort, y=selected_alarm, by=c("wo_p","group"))
+cort_alarm_psa <- full_join(x=cort_alarm, y=selected_psa, by=c("wo_p","group"))
+cort_alarm_psa_ucp <-full_join(x=cort_alarm_psa, y=selected_ucp, by=c("wo_p","group","name"))%>%
+drop_na(cort_numeric)
+
+
+```
+
+
+
+
+
+#trying ggplt gg cort dw x r eagle
+```{r}
+ggplot(data = cort_alarm_psa_ucp, aes(x=r_eagle, y=cort_numeric)) +
+  geom_point()
+```
+
+
+```{r}
+ggplot(data = cort_alarm_psa_ucp, aes(x=wo_p, y=r_eagle, color=group)) +
+  geom_point()+
+  theme_gray()
+```
+```{r}
+ggplot(data = cort_alarm_psa_ucp, aes(x=wo_p, y=psa_ch_perc, color=group)) +
+  geom_point()
+```
+```{r}
+ggplot(data = cort_alarm_psa_ucp, aes(x=wo_p, y=psa_my_perc, color = group)) +
+  geom_point() +
+  theme_gray()
+```
+```{r}
+
+ggplot(cort_alarm_psa_ucp, aes(x=group, y=r_eagle)) +
+  geom_boxplot()+
+  theme_gray()
+
+```
+
+```{r}
+ggplot(cort_alarm_psa_ucp, aes(x=group, y=psa_ch_perc)) +
+  geom_boxplot()+
+  theme_gray()
+```
+```{r}
+ggplot(cort_alarm_psa_ucp, aes(x=group, y=psa_my_perc)) +
+  geom_boxplot()+
+  theme_gray()
+```
+
