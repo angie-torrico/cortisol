@@ -15,13 +15,20 @@ knitr::opts_chunk$set(echo = TRUE)
 #install.packages("here")
 #install.packages("janitor")
 #install.packages("dplyr")
+install.packages("lme4", type="binary")
+install.packages("sjlabelled")
+install.packages("sjPlot")
+install.packages("sjmisc")
 
 library(tidyverse)
 library(here)
 library(janitor)
 library(dplyr)
 library(ggplot2)
-
+library(lme4)
+library(sjPlot)
+library(sjmisc)
+library(sjlabelled)
 ```
 
 #calling the data and clean names to make everything lowercase
@@ -40,15 +47,32 @@ repro <- read.csv(here("data", "Repro for RT 2012-2015.csv")) %>%
   clean_names()
 ```
 
+```{r}
+repro <- repro %>%
+  mutate(repro_narrow = case_when(pregnant=="1" ~ "1",
+                                  d_infant == "1" ~ "2",
+                                  pregnant == "0" ~ "0",))
+repro <- repro %>%
+  mutate(repro_broad = case_when(pregnant =="1" ~ "1" ,
+                             d_infant == "1" ~ "2",
+                            pregnant == "0" ~ "0",
+                            pregnant == "10" ~ "1"))
+
+```
+
+
+
 #selecting columns from each dataset
 ```{r}
 selected_alarm <- select(alarm_ige, group, r_eagle, r_ig_es, wo_p)
 selected_chomp <- select(chomp_rt, group, c_homp_final, wo_p)
-selected_cort <- select(cort_rt, species, group, name, class, cort_dw, wo_p)
+selected_cort <- select(cort_rt, species, group, name, class, cort_dw, wo_p, date)
 #renaming wp in psa to w_op to match all other datasets
 colnames(psa_rt)[4]<-"wo_p"
-selected_psa <- select(psa_rt, psa_my_perc, psa_bl_perc, psa_ch_perc, wo_p, group)
+selected_psa <- select(psa_rt, psa_my_perc, psa_bl_perc, psa_ch_perc, wo_p, group, date)
 selected_ucp <- select(ucp_rt, group, name, mean_uc_psg, wo_p)
+selected_repro <- repro%>%
+  select(repro_narrow, repro_broad, wo_p, group, name)
 ```
 
 
@@ -67,55 +91,95 @@ rename_selected_cort <- selected_cort %>%
 
 #combining selected columns datasets
 ```{r}
-cort_alarm <- full_join(x=selected_cort, y=selected_alarm, by=c("wo_p","group"))
-cort_alarm_psa <- full_join(x=cort_alarm, y=selected_psa, by=c("wo_p","group"))
-cort_alarm_psa_ucp <-full_join(x=cort_alarm_psa, y=selected_ucp, by=c("wo_p","group","name"))%>%
-drop_na(cort_numeric)
-
+cort_psa <- full_join(x=selected_cort, y=selected_psa, by=c("wo_p","group", "date"))%>%
+  drop_na(cort_dw)
+cort_psa_alarm <- full_join(x=cort_psa, y=selected_alarm, by=c("wo_p","group"))
+cort_alarm_psa_repro <- full_join(x=cort_alarm_psa, y=selected_repro, by=c("wo_p", "group", "name"))
+cort_alarm_psa_repro_ucp <-full_join(x=cort_alarm_psa_repro, y=selected_ucp, by=c("wo_p","group","name"))%>%
+drop_na(cort_numeric)%>%
+  drop_na(mean_uc_psg)%>%
+  drop_na(repro_narrow)%>%
+  drop_na(repro_broad)
+final <- cort_alarm_psa_repro_ucp %>%
+  distinct()
 
 ```
-
-
 
 
 
 #trying ggplt gg cort dw x r eagle
 ```{r}
-ggplot(data = cort_alarm_psa_ucp, aes(x=r_eagle, y=cort_numeric)) +
+ggplot(data = final, aes(x=r_eagle, y=cort_numeric)) +
   geom_point()
 ```
 
 
 ```{r}
-ggplot(data = cort_alarm_psa_ucp, aes(x=wo_p, y=r_eagle, color=group)) +
+ggplot(data = final, aes(x=wo_p, y=r_eagle, color=group)) +
   geom_point()+
   theme_gray()
 ```
 ```{r}
-ggplot(data = cort_alarm_psa_ucp, aes(x=wo_p, y=psa_ch_perc, color=group)) +
+ggplot(data = final, aes(x=wo_p, y=psa_ch_perc, color=group)) +
   geom_point()
 ```
 ```{r}
-ggplot(data = cort_alarm_psa_ucp, aes(x=wo_p, y=psa_my_perc, color = group)) +
+ggplot(data = final, aes(x=wo_p, y=psa_my_perc, color = group)) +
   geom_point() +
   theme_gray()
 ```
 ```{r}
 
-ggplot(cort_alarm_psa_ucp, aes(x=group, y=r_eagle)) +
+ggplot(final, aes(x=group, y=r_eagle)) +
   geom_boxplot()+
   theme_gray()
 
 ```
 
 ```{r}
-ggplot(cort_alarm_psa_ucp, aes(x=group, y=psa_ch_perc)) +
+ggplot(final, aes(x=group, y=psa_ch_perc)) +
   geom_boxplot()+
   theme_gray()
 ```
 ```{r}
-ggplot(cort_alarm_psa_ucp, aes(x=group, y=psa_my_perc)) +
+ggplot(final, aes(x=group, y=psa_my_perc)) +
   geom_boxplot()+
   theme_gray()
 ```
+
+
+```{r}
+model_group <- lmer(cort_numeric ~ r_eagle + psa_ch_perc + mean_uc_psg + psa_my_perc+
+  (1|group), data=final)
+  
+summary(model_1)
+
+tab_model(model_group, show.aic = TRUE, p.style = "numeric", emph.p = TRUE)
+```
+
+```{r}
+model_group_name <- lmer(cort_numeric ~ r_eagle + psa_ch_perc + mean_uc_psg + psa_my_perc+
+  (1|group /name), data=final)
+
+tab_model(model_group_name, show.aic = TRUE, p.style = "numeric", emph.p = TRUE)
+```
+
+
+
+```{r}
+model_2 <- lmer(cort_numeric ~ r_eagle + psa_ch_perc * mean_uc_psg + psa_my_perc+
+  (1|group /name), data=final)
+
+model_3 <- lmer(cort_numeric ~ r_eagle + psa_ch_perc + mean_uc_psg * psa_my_perc+
+  (1|group /name), data=final)
+
+
+tab_model(model_2 , model_3, show.aic = TRUE, p.style = "numeric", emph.p = TRUE)
+#note
+```
+
+```{r}
+ # something else to push to git
+```
+
 
