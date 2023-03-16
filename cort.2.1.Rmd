@@ -15,11 +15,11 @@ knitr::opts_chunk$set(echo = TRUE)
 #install.packages("here")
 #install.packages("janitor")
 #install.packages("dplyr")
-install.packages("lme4", type="binary")
-install.packages("sjlabelled")
-install.packages("sjPlot")
-install.packages("sjmisc")
-install.packages("Matrix")
+#install.packages("lme4", type="binary")
+#install.packages("sjlabelled")
+#install.packages("sjPlot")
+#install.packages("sjmisc")
+#install.packages("Matrix")
 
 library(tidyverse)
 library(here)
@@ -68,7 +68,7 @@ repro <- repro %>%
 ```{r}
 selected_alarm <- select(alarm_ige, group, r_eagle, r_ig_es, wo_p)
 selected_chomp <- select(chomp_rt, group, c_homp_final, wo_p)
-selected_cort <- select(cort_rt, species, group, name, class, cort_dw, wo_p, date)
+selected_cort <- select(cort_rt, species, group, name, class, cort_dw, wo_p, date, time)
 #renaming wp in psa to w_op to match all other datasets
 colnames(psa_rt)[4]<-"wo_p"
 selected_psa <- select(psa_rt, psa_my_perc, psa_bl_perc, psa_ch_perc, wo_p, group, date)
@@ -152,7 +152,7 @@ ggplot(final, aes(x=group, y=psa_my_perc)) +
   theme_gray()
 ```
 
-
+#model
 ```{r}
 model_group <- lmer(cort_numeric ~ r_eagle + psa_ch_perc + mean_uc_psg + psa_my_perc+
   (1|group), data=final)
@@ -190,4 +190,59 @@ class(final$cort_dw)
 final$cort_dw <- gsub(",", "", final$cort_dw)
 ```
 
+
+
+```{r}
+model_4 <- lmer(cort_numeric ~ r_eagle * mean_uc_psg + psa_my_perc + psa_ch_perc +
+  (1|group /name), data=final)
+
+tab_model(model_4, show.aic = TRUE, p.style = "numeric", emph.p = TRUE)
+
+ggplot(final, aes(x= mean_uc_psg, y= cort_dw))+
+         geom_point()+
+  geom_smooth(method = "lm")
+
+write.csv(final, "final.csv", na = "")
+
+model_6 <- lmer(cort_numeric ~ r_eagle +
+  (1|group /name), data=final)
+tab_model(model_6, show.aic = TRUE, p.style = "numeric", emph.p = TRUE)
+```
+
+
+
+```{r}
+#time 
+model_time <- lmer(cort_numeric ~ r_eagle + psa_ch_perc + mean_uc_psg + psa_my_perc+
+  (1|group /name/ time), data=final)
+tab_model(model_time, show.aic = TRUE, p.style = "numeric", emph.p = TRUE)
+
+```
+
+```{r}
+#mean cort per monkey 
+mean_cort<- aggregate(data=final, cort_numeric~name, FUN=mean)
+mean_cort$centered_cort<-(mean) 
+
+final_df <-merge(x=final, y=mean_cort, by=("name"))
+
+final_df$centered_cort<-(final_df$cort_numeric.x-final_df$cort_numeric.y) 
+```
+
+```{r}
+#model with mean cort 
+model_7 <- lmer(centered_cort ~ r_eagle + psa_ch_perc + mean_uc_psg + psa_my_perc+
+  (1|group /name/ time), data=final_df)
+tab_model(model_7, show.aic = TRUE, p.style = "numeric", emph.p = TRUE)
+```
+
+
+```{r}
+#standardizing reagle
+final_df$mean_reagle<-mean(final_df$r_eagle, na.rm=TRUE)
+
+final_df$sd_reagle<-sd(final_df$r_eagle, na.rm=TRUE)
+
+final_df$stan_reagle<-((final_df$r_eagle - final_df$r_eagle)-(2*final_df$sd_reagle))
+```
 
