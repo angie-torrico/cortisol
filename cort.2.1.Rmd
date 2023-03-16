@@ -19,6 +19,7 @@ install.packages("lme4", type="binary")
 install.packages("sjlabelled")
 install.packages("sjPlot")
 install.packages("sjmisc")
+install.packages("Matrix")
 
 library(tidyverse)
 library(here)
@@ -29,6 +30,7 @@ library(lme4)
 library(sjPlot)
 library(sjmisc)
 library(sjlabelled)
+library(Matrix)
 ```
 
 #calling the data and clean names to make everything lowercase
@@ -78,13 +80,18 @@ selected_repro <- repro%>%
 
 #cortisol average by group
 ```{r}
+selected_cort$cort_dw <- gsub(",", "", selected_cort$cort_dw)
+
 cort_dw_num <- as.numeric(selected_cort$cort_dw)
+
 selected_cort$cort_numeric <- c(cort_dw_num)
+  
 
 
 rename_selected_cort <- selected_cort %>%
   group_by(group) %>%
   summarize(cort_sum=sum(cort_dw_num))
+
   
 ```
 
@@ -94,14 +101,12 @@ rename_selected_cort <- selected_cort %>%
 cort_psa <- full_join(x=selected_cort, y=selected_psa, by=c("wo_p","group", "date"))%>%
   drop_na(cort_dw)
 cort_psa_alarm <- full_join(x=cort_psa, y=selected_alarm, by=c("wo_p","group"))
-cort_alarm_psa_repro <- full_join(x=cort_alarm_psa, y=selected_repro, by=c("wo_p", "group", "name"))
+cort_alarm_psa_repro <- full_join(x=cort_psa_alarm, y=selected_repro, by=c("wo_p", "group", "name"))
 cort_alarm_psa_repro_ucp <-full_join(x=cort_alarm_psa_repro, y=selected_ucp, by=c("wo_p","group","name"))%>%
-drop_na(cort_numeric)%>%
-  drop_na(mean_uc_psg)%>%
-  drop_na(repro_narrow)%>%
-  drop_na(repro_broad)
-final <- cort_alarm_psa_repro_ucp %>%
-  distinct()
+  drop_na(cort_dw)
+
+ 
+final <- cort_alarm_psa_repro_ucp 
 
 ```
 
@@ -180,6 +185,9 @@ tab_model(model_2 , model_3, show.aic = TRUE, p.style = "numeric", emph.p = TRUE
 
 ```{r}
  # something else to push to git
+
+class(final$cort_dw)
+final$cort_dw <- gsub(",", "", final$cort_dw)
 ```
 
 
