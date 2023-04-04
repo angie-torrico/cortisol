@@ -58,7 +58,7 @@ repro <- repro %>%
   mutate(repro_broad = case_when(pregnant =="1" ~ "1" ,
                              d_infant == "1" ~ "2",
                             pregnant == "0" ~ "0",
-                            pregnant == "10" ~ "1"))
+                            pregnant == "10" ~ "1", sex == "Male" ~ "3"))
 
 ```
 
@@ -268,11 +268,13 @@ final_df$stan_psamyperc<-((final_df$psa_my_perc - final_df$mean_psamyperc)-(2*fi
 
 ```{r}
 #standardizing mean_uc_psg
-final_df$mean_mean_uc_psg<-mean(final_df$mean_uc_psg, na.rm=TRUE)
+final_df$log_mean_uc_psg<-log10(final_df$mean_uc_psg)
 
-final_df$sd_mean_uc_psg<-sd(final_df$mean_uc_psg, na.rm=TRUE)
+final_df$mean_ucp_sg<-mean(final_df$log_mean_uc_psg, na.rm=TRUE)
 
-final_df$stan_mean_uc_psg<-((final_df$mean_uc_psg - final_df$mean_mean_uc_psg)-(2*final_df$sd_mean_uc_psg))
+final_df$sd_mean_uc_psg<-sd(final_df$log_mean_uc_psg, na.rm=TRUE)
+
+final_df$stanmean_ucpsg<-((final_df$mean_uc_psg - final_df$log_mean_uc_psg)-(2*final_df$sd_mean_uc_psg))
 ```
 
 ```{r}
@@ -314,5 +316,34 @@ tab_model(model_10, show.aic = TRUE, p.style = "numeric", emph.p = TRUE)
 null_model <- lmer(cort_numeric.x~ cort_numeric.y + mean_uc_psg + timess + repro_broad +
                      (1|wo_p/name), data=final_df)
 tab_model(null_model, show.aic = TRUE, p.style = "numeric", emph.p = TRUE)
+```
+
+```{r}
+#log cort 
+
+final_df$cort_log<-log10(final_df$cort_numeric.x)
+
+```
+
+```{r}
+#time polynomial
+
+final_df$time_poly<-poly(final_df$timess, degree = 2, coefs = NULL, raw = FALSE, simple = FALSE)
+
+```
+
+```{r}
+nullmodel1 <- lmer(cort_log ~ stanmean_ucpsg + time_poly + repro_broad +
+                     (1|wo_p), data = final_df) 
+  
+tab_model(nullmodel1, show.aic = TRUE, p.style = "numeric", emph.p = TRUE)
+```
+
+```{r}
+#residual of null model 
+
+final_df$resid <- resid(nullmodel1)
+
+
 ```
 
