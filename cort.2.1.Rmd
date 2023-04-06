@@ -58,7 +58,9 @@ repro <- repro %>%
   mutate(repro_broad = case_when(pregnant =="1" ~ "1" ,
                              d_infant == "1" ~ "2",
                             pregnant == "0" ~ "0",
-                            pregnant == "10" ~ "1", sex == "Male" ~ "3"))
+                            pregnant == "10" ~ "1", 
+                            class == "SM" ~ "3",
+                            class == "AM" ~ "3"))
 
 ```
 
@@ -299,7 +301,6 @@ time_obj<- as.POSIXct(time_str, format= "%H: %M")
 
 final_df$time_num<- as.numeric(time_obj)
 
-
 final_df$timess<- gsub(":","",final_df$time)
 class(final_df$timess)
 final_df$timess<-as.numeric(final_df$timess)
@@ -328,12 +329,16 @@ final_df$cort_log<-log10(final_df$cort_numeric.x)
 ```{r}
 #time polynomial
 
-final_df$time_poly<-poly(final_df$timess, degree = 2, coefs = NULL, raw = FALSE, simple = FALSE)
+final_df$time_poly1<-poly(final_df$timess, degree = 1, coefs = NULL, raw = FALSE, simple = FALSE)
+
+final_df$time_poly2<-poly(final_df$timess, degree = 2, coefs = NULL, raw = FALSE, simple = FALSE)
 
 ```
 
 ```{r}
-nullmodel1 <- lmer(cort_log ~ stanmean_ucpsg + time_poly + repro_broad +
+#null model
+
+nullmodel1 <- lmer(cort_log ~ stanmean_ucpsg + time_poly1 + time_poly2 + repro_broad +
                      (1|wo_p), data = final_df) 
   
 tab_model(nullmodel1, show.aic = TRUE, p.style = "numeric", emph.p = TRUE)
