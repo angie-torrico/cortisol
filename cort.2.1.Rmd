@@ -87,12 +87,6 @@ selected_cort$cort_dw <- gsub(",", "", selected_cort$cort_dw)
 cort_dw_num <- as.numeric(selected_cort$cort_dw)
 
 selected_cort$cort_numeric <- c(cort_dw_num)
-  
-
-
-rename_selected_cort <- selected_cort %>%
-  group_by(group) %>%
-  summarize(cort_sum=sum(cort_dw_num))
 
   
 ```
@@ -107,8 +101,9 @@ cort_alarm_psa_repro <- full_join(x=cort_psa_alarm, y=selected_repro, by=c("wo_p
 cort_alarm_psa_repro_ucp <-full_join(x=cort_alarm_psa_repro, y=selected_ucp, by=c("wo_p","group","name"))%>%
   drop_na(cort_dw)
 
- 
-final <- cort_alarm_psa_repro_ucp 
+cort_alarm_psa_repro_ucp_chomp <- full_join(x=cort_alarm_psa_repro_ucp, y=selected_chomp, by=c("wo_p", "group"))
+
+final <- cort_alarm_psa_repro_ucp_chomp 
 
 ```
 
@@ -225,88 +220,88 @@ tab_model(model_time, show.aic = TRUE, p.style = "numeric", emph.p = TRUE)
 #mean cort per monkey 
 mean_cort<- aggregate(data=final, cort_numeric~name, FUN=mean)
 
-final_df <-merge(x=final, y=mean_cort, by=("name"))
+final <-merge(x=final, y=mean_cort, by=("name"))
 
-final_df$centered_cort<-(final_df$cort_numeric.x-final_df$cort_numeric.y) 
+final$centered_cort<-(final$cort_numeric.x-final$cort_numeric.y) 
 ```
 
 ```{r}
 #model with mean cort 
 model_7 <- lmer(centered_cort ~ r_eagle + psa_ch_perc + mean_uc_psg + psa_my_perc+
-  (1|group /name/ time), data=final_df)
+  (1|group /name/ time), data=final)
 tab_model(model_7, show.aic = TRUE, p.style = "numeric", emph.p = TRUE)
 ```
 
 
 ```{r}
 #standardizing psa_ch_perc
-final_df$mean_psachperc<-mean(final_df$psa_ch_perc, na.rm=TRUE)
+final$mean_psachperc<-mean(final$psa_ch_perc, na.rm=TRUE)
 
-final_df$sd_psachperc<-sd(final_df$psa_ch_perc, na.rm=TRUE)
+final$sd_psachperc<-sd(final$psa_ch_perc, na.rm=TRUE)
 
-final_df$stan_psachperc<-((final_df$psa_ch_perc - final_df$mean_psachperc)-(2*final_df$sd_psachperc))
+final$stan_psachperc<-((final$psa_ch_perc - final$mean_psachperc)-(2*final$sd_psachperc))
 ```
 
 
 ```{r}
 #standardizing reagle
-final_df$mean_reagle<-mean(final_df$r_eagle, na.rm=TRUE)
+final$mean_reagle<-mean(final$r_eagle, na.rm=TRUE)
 
-final_df$sd_reagle<-sd(final_df$r_eagle, na.rm=TRUE)
 
-final_df$stan_reagle<-((final_df$r_eagle - final_df$mean_reagle)-(2*final_df$sd_reagle))
+final$sd_reagle<-sd(final$r_eagle, na.rm=TRUE)
+
+final$stan_reagle<-((final$r_eagle - final$mean_reagle)-(2*final$sd_reagle))
 ```
 
 
 ```{r}
 #standardizing psa_my_perc
-final_df$mean_psamyperc<-mean(final_df$psa_my_perc, na.rm=TRUE)
+final$mean_psamyperc<-mean(final$psa_my_perc, na.rm=TRUE)
 
-final_df$sd_psamyperc<-sd(final_df$psa_my_perc, na.rm=TRUE)
+final$sd_psamyperc<-sd(final$psa_my_perc, na.rm=TRUE)
 
-final_df$stan_psamyperc<-((final_df$psa_my_perc - final_df$mean_psamyperc)-(2*final_df$sd_psamyperc))
+final$stan_psamyperc<-((final$psa_my_perc - final$mean_psamyperc)-(2*final$sd_psamyperc))
 ```
 
 
 ```{r}
 #standardizing mean_uc_psg
-final_df$log_mean_uc_psg<-log10(final_df$mean_uc_psg)
+final$log_mean_uc_psg<-log10(final$mean_uc_psg)
 
-final_df$mean_ucp_sg<-mean(final_df$log_mean_uc_psg, na.rm=TRUE)
+final$mean_ucp_sg<-mean(final$log_mean_uc_psg, na.rm=TRUE)
 
-final_df$sd_mean_uc_psg<-sd(final_df$log_mean_uc_psg, na.rm=TRUE)
+final$sd_mean_uc_psg<-sd(final$log_mean_uc_psg, na.rm=TRUE)
 
-final_df$stanmean_ucpsg<-((final_df$mean_uc_psg - final_df$log_mean_uc_psg)-(2*final_df$sd_mean_uc_psg))
+final$stanmean_ucpsg<-((final$mean_uc_psg - final$log_mean_uc_psg)-(2*final$sd_mean_uc_psg))
 ```
 
 ```{r}
 #standardized model
 model_8 <- lmer(centered_cort ~ stan_reagle + stan_psachperc + stan_mean_uc_psg + stan_psamyperc+ 
-  (1|name), data=final_df)
+  (1|name), data=final)
 tab_model(model_8, show.aic = TRUE, p.style = "numeric", emph.p = TRUE)
 
-write.csv(final_df, "final_df3.15.csv", na = "")
+write.csv(final, "final3.15.csv", na = "")
 
 model_9 <- lmer(centered_cort ~ stan_reagle + stan_psachperc + stan_mean_uc_psg + stan_psamyperc+
-  (1|group /name/ time), data=final_df)
+  (1|group /name/ time), data=final)
 tab_model(model_7, show.aic = TRUE, p.style = "numeric", emph.p = TRUE)
 ```
 
 
 ```{r}
 #time as number
-time_str<- as.character(final_df$time)
+time_str<- as.character(final$time)
 
 time_obj<- as.POSIXct(time_str, format= "%H: %M")
 
-final_df$time_num<- as.numeric(time_obj)
+final$time_num<- as.numeric(time_obj)
 
-final_df$timess<- gsub(":","",final_df$time)
-class(final_df$timess)
-final_df$timess<-as.numeric(final_df$timess)
+class(final$time_num)
+
 
 model_10 <- lmer(centered_cort ~ stan_reagle + stan_psachperc + stan_mean_uc_psg + stan_psamyperc + timess + repro_broad +
-  (1|name), data=final_df)
+  (1|name), data=final)
 tab_model(model_10, show.aic = TRUE, p.style = "numeric", emph.p = TRUE)
 ```
 
@@ -314,24 +309,24 @@ tab_model(model_10, show.aic = TRUE, p.style = "numeric", emph.p = TRUE)
 
 
 ```{r}
-null_model <- lmer(cort_numeric.x~ cort_numeric.y + mean_uc_psg + timess + repro_broad +
-                     (1|wo_p/name), data=final_df)
+null_model <- lmer(cort_numeric.x~ cort_numeric.y + mean_uc_psg + time_num + repro_broad +
+                     (1|wo_p/name), data=final)
 tab_model(null_model, show.aic = TRUE, p.style = "numeric", emph.p = TRUE)
 ```
 
 ```{r}
 #log cort 
 
-final_df$cort_log<-log10(final_df$cort_numeric.x)
+cort_log<-log10(final$cort_numeric.x)
 
 ```
 
 ```{r}
 #time polynomial
 
-final_df$time_poly1<-poly(final_df$timess, degree = 1, coefs = NULL, raw = FALSE, simple = FALSE)
+final$time_poly1<-poly(final$time_num, degree = 1, coefs = NULL, raw = FALSE, simple = FALSE)
 
-final_df$time_poly2<-poly(final_df$timess, degree = 2, coefs = NULL, raw = FALSE, simple = FALSE)
+final$time_poly2<-poly(final$time_num, degree = 2, coefs = NULL, raw = FALSE, simple = FALSE)
 
 ```
 
@@ -339,16 +334,36 @@ final_df$time_poly2<-poly(final_df$timess, degree = 2, coefs = NULL, raw = FALSE
 #null model
 
 nullmodel1 <- lmer(cort_log ~ stanmean_ucpsg + time_poly1 + time_poly2 + repro_broad +
-                     (1|wo_p), data = final_df) 
+                     (1|wo_p), data = final) 
   
 tab_model(nullmodel1, show.aic = TRUE, p.style = "numeric", emph.p = TRUE)
 ```
 
+
+```{r}
+
+nullmodel2 <- lmer(cort_log ~ centered_cort + stanmean_ucpsg + time_poly1 + time_poly2 + repro_broad +
+                     (1|group/name), data = final) 
+  
+tab_model(nullmodel1, show.aic = TRUE, p.style = "numeric", emph.p = TRUE)
+```
+
+
 ```{r}
 #residual of null model 
 
-final_df$resid <- resid(nullmodel1)
+final$resid <- resid(nullmodel1)
 
 
+```
+
+
+```{r}
+#psa day before 
+#date needs to be numeric 
+
+final$date_numeric<-as.numeric(final$date)
+
+final$day_before <- final$date - 1
 ```
 
