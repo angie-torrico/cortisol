@@ -47,6 +47,9 @@ psa_rt <- read.csv(here("data", "PSAs for RT 2012-2015 - per Day.csv")) %>%
   clean_names()
 repro <- read.csv(here("data", "Repro for RT 2012-2015.csv")) %>%
   clean_names()
+
+eagle_orig <- read.csv(here("data", "original eagle.csv")) %>%
+  clean_names()
 ```
 
 ```{r}
@@ -64,6 +67,19 @@ repro <- repro %>%
 
 ```
 
+```{r}
+#daily rate of eagle alarm
+
+eagle_orig %>%
+  group_by(group)%>%
+  group_by(date)%>%
+  mutate(total_calls = sum(number_of_calls_within))%>%
+  ungroup()
+
+
+
+
+```
 
 
 #selecting columns from each dataset
@@ -77,6 +93,7 @@ selected_psa <- select(psa_rt, psa_my_perc, psa_bl_perc, psa_ch_perc, wo_p, grou
 selected_ucp <- select(ucp_rt, group, name, mean_uc_psg, wo_p)
 selected_repro <- repro%>%
   select(repro_narrow, repro_broad, wo_p, group, name)
+
 ```
 
 
@@ -345,14 +362,14 @@ tab_model(nullmodel1, show.aic = TRUE, p.style = "numeric", emph.p = TRUE)
 nullmodel2 <- lmer(cort_log ~ centered_cort + stanmean_ucpsg + time_poly1 + time_poly2 + repro_broad +
                      (1|group/name), data = final) 
   
-tab_model(nullmodel1, show.aic = TRUE, p.style = "numeric", emph.p = TRUE)
+tab_model(nullmodel2, show.aic = TRUE, p.style = "numeric", emph.p = TRUE)
 ```
 
 
 ```{r}
 #residual of null model 
 
-final$resid <- resid(nullmodel1)
+resid <- resid(nullmodel2)
 
 
 ```
@@ -366,4 +383,31 @@ final$date_numeric<-as.numeric(final$date)
 
 final$day_before <- final$date - 1
 ```
+
+
+```{r}
+summary(final$time_poly1)
+```
+```{r}
+summary(final$time_poly2)
+```
+```{r}
+summary(final$stanmean_ucpsg)
+```
+```{r}
+summary(final$stan_reagle)
+```
+```{r}
+summary(final$stan_psamyperc)
+```
+```{r}
+summary(final$stan_psachperc)
+```
+```{r}
+summary(final$centered_cort)
+```
+```{r}
+class(eagle_orig$date)
+```
+
 
